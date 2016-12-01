@@ -1,70 +1,98 @@
-import nltk # flera paket som används härifrån
-import os # för att kunna läsa filerna i mappen iterativt
-import random
-from collections import Counter # så att jag kan använda mig av bag-of-words-modellen
-from nltk import word_tokenize
-from nltk import WordNetLemmatizer
+"""
+
+Tillämpad Programmering, HT 2016
+Fatima Guseinova
+______________________________________
+
+Programmet använder sig av enron3-mappen i min Mumin-mapp,
+men det går enkelt att ändra filkällan till en annan mapp i main-delen.
+
+
+"""
+
+
+import os, random, nltk
+from nltk import word_tokenize, WordNetLemmatizer, NaiveBayesClassifier, classify
 from nltk.corpus import stopwords
-from nltk import NaiveBayesClassifier
-#from nltk import classify
+from collections import Counter # så att jag kan använda mig av bag-of-words-modellen
 
 
-# använder mig av mappen 'enron5' som innehåller drygt 3000 ham-mejl och hälften så många spam-mejl
+icke_ord = stopwords.words ('english')
 
-
-# LADDA DATAN -> FÖRPROCESSA -> TA FRAM FEATURES -> TRÄNA KLASSIFIERAREN -> UTVÄRDERA
-
-# förprocessning: tokenisering och lemmatisering samt gemene bokstäver för alla ord
-
-# FEATURES:
-# 1) ta bort icke-ord/stopp-ord,
-# 2) för varje icke-ord - räkna hur frekvent det är i texten
-# (härmed kan klassifieraren regga att vissa ord kan förekomma i båda emejltyper men olika ofta),
-# 3) extrahera feautres från emejls och para ihop de med emejltaggen 'ham' eller 'spam'
-
-icke_ord_lista = stopwords.words ('english')
-
-def fixa_listor (mapp):
-    fillista = os.listdir(mapp)
+def fixa_listor (mapp): # inläsning av data
+    """ läser in spam- respektive OK-mejl i var sin lista,
+    listorna skapas i main-delen"""
+    
+    lista_med_filer = os.listdir(mapp)
     lista = []
-    for fil in fillista:
-        a = open (mapp + fil, 'r')
+    for fil in lista_med_filer:
+        a = open (mapp + fil, mode='r', encoding='latin-1') # här avhjälps encoding-problemen
         lista.append (a.read())
     a.close()
     return lista
 
-# wordnetlemmatizer-modulen returnerar ett oförändrat inputord om det inte är funnet i WordNet
-# tokenize-mmodulen returnerar lista av strängar
-def förprocessa (mening):
-    wnl = WordNetLemmatizer ()
-    return [wnl.lemmatize(word.lower()) for word in word_tokenize (unicode (mening, errors = ignore))]
+
+
+def förprocessa (mening): # normalisering av data
+    
+    wnl = WordNetLemmatizer()
+    return [wnl.lemmatize(ordet.lower()) for ordet in word_tokenize(mening)]
 
 
 
-# parametern 'setting' tillåter mig styra vilken approach/modell jag vill nyttja
-# defaultmodellen här är ordfrekvens
-# provar att använda mig av "bag-of-words"-modellen som tillåter klassifieraren att
-# regga att en del ord förekommer i både spam och ham, där de är mer frekventa i den ena än den andra gruppen
+def definiera_dragen (text, setting): # definierar dragen för vad som utgör ett spammejl
 
-def feat_definition (text, setting):
-    if setting == 'bow':
-        return {word: count for word, count in Counter (förprocessa(text)).items() if word not in icke_ord_lista}
+    if setting == 'bow': # ser till ordfrekvensen
+        return {ordet: räkna for ordet, räkna in Counter (förprocessa(text)).items() if not ordet in icke_ord}
     else:
-        return {word: True for word in förprocessa(text) if word not in icke_ord_lista}
+        return {ordet: True for ordet in förprocessa(text) if not ordet in icke_ord}    
 
 
 
-#####################
-#main-delen#
-#####################
+def öva (drag, uppdelning): # en uppdelning av data i övnings- och testgrupper och träningsprocessen görs
+    
+    träningsmängd = int (len(drag) * uppdelning)
 
-# preppar datan för vidare arbete
-spam_mejl = fixa_listor('enron5/ham/')
-ham_mejl = fixa_listor('enron5/ham/')
+    
+    # övningen på tränings- och dataseten påbörjas
+    träningsdata, testdata = drag[:träningsmängd], drag[träningsmängd:]
+
+    print (str(len(träningsdata)) + ' emails are being used in the training data, and \n' +
+           str(len(testdata)) + ' emails are being used in the test data.\n')
+
+    klassifieraren = NaiveBayesClassifier.train(träningsdata) # övar upp klassifieraren
+
+    return träningsdata, testdata, klassifieraren
 
 
-# preppar featuresen
 
-# tränar klassifieraren
+def utvärdera (träningsdata, testdata, klassifieraren):
+    # utvärderar klassifierarens prestation med tränings- och testdatan som grund
 
-# utvärdering
+    print ('Training accuracy: ' + str (classify.accuracy(klassifieraren, träningsdata)) + '.\n' +
+           'Test accuracy: ' + str (classify.accuracy(klassifieraren, testdata)) + '.\n\n')
+
+    klassifieraren.show_most_informative_features (20) # rapport på de 20 mest 'avslöjande' orden
+    
+    print ("\n\n                        There you go, I'm done!\n")
+
+
+
+if __name__ == "__main__":
+
+    print ('Let me see...\n')
+
+    spam = fixa_listor('enron3/spam/')
+    ham = fixa_listor('enron3/ham/')
+    
+    alla_mail = [(email, 'OK') for email in ham]
+    alla_mail += [(email, 'spam') for email in spam]
+    random.shuffle (alla_mail)
+    
+    alla_drag = [(definiera_dragen (email, ' '), label) for (email, label) in alla_mail]
+
+    print ('I have found ' + str (len (alla_drag)) + ' feature sets.\n')
+    
+    träningsdata, testdata, klassifieraren = öva(alla_drag, 0.8) # använder 80%-20%-uppdelning av tränings- och testdata
+    
+    utvärdera (träningsdata, testdata, klassifieraren)

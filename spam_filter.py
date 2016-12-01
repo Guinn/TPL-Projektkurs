@@ -4,8 +4,8 @@ Tillämpad Programmering, HT 2016
 Fatima Guseinova
 ______________________________________
 
-Programmet använder sig av enron3-mappen i min Mumin-mapp,
-men det går enkelt att ändra filkällan till en annan mapp i main-delen.
+Programmet använder sig av enron3-mappen i min Mumin-mapp.
+Filkällan ändras i main-delen.
 
 
 """
@@ -15,6 +15,9 @@ import os, random, nltk
 from nltk import word_tokenize, WordNetLemmatizer, NaiveBayesClassifier, classify
 from nltk.corpus import stopwords
 from collections import Counter # så att jag kan använda mig av bag-of-words-modellen
+from nltk.classify.scikitlearn import SklearnClassifier
+from sklearn.naive_bayes import BernoulliNB
+from sklearn.linear_model import LogisticRegression
 
 
 icke_ord = stopwords.words ('english')
@@ -59,22 +62,35 @@ def öva (drag, uppdelning): # en uppdelning av data i övnings- och testgrupper
 
     print (str(len(träningsdata)) + ' emails are being used in the training data, and \n' +
            str(len(testdata)) + ' emails are being used in the test data.\n')
+    
 
-    klassifieraren = NaiveBayesClassifier.train(träningsdata) # övar upp klassifieraren
+    klassifieraren = NaiveBayesClassifier.train(träningsdata) # övar upp Naive Bayes-klassifieraren
+    bernoulli_klassifieraren = SklearnClassifier(BernoulliNB()).train(träningsdata) # övar upp Bernoulli-klassifieraren
+    log_reg_klassifieraren = SklearnClassifier(LogisticRegression()).train(träningsdata) # övar upp LogisticRegression-klassifieraren
 
-    return träningsdata, testdata, klassifieraren
+    return träningsdata, testdata, klassifieraren, bernoulli_klassifieraren, log_reg_klassifieraren
 
 
 
-def utvärdera (träningsdata, testdata, klassifieraren):
+def utvärdera (träningsdata, testdata, klassifieraren, bernoulli_klassifieraren, log_reg_klassifieraren):
     # utvärderar klassifierarens prestation med tränings- och testdatan som grund
 
-    print ('Training accuracy: ' + str (classify.accuracy(klassifieraren, träningsdata)) + '.\n' +
-           'Test accuracy: ' + str (classify.accuracy(klassifieraren, testdata)) + '.\n\n')
+    nb_övning_accuracy = classify.accuracy (klassifieraren, träningsdata)
+    nb_test_accuracy = classify.accuracy (klassifieraren, testdata)
+    bernoulli_accuracy = classify.accuracy (bernoulli_klassifieraren, testdata)
+    log_reg_accuracy = classify.accuracy (log_reg_klassifieraren, testdata)
+
+    print ('Training accuracy: ' + str (nb_övning_accuracy) + '.\n' +
+           'Test accuracy: ' + str (nb_test_accuracy) + '.\n\n')
+
 
     klassifieraren.show_most_informative_features (20) # rapport på de 20 mest 'avslöjande' orden
+
+    print ("\n\n\nNaive Bayes Classifier accuracy in percent: ", round (nb_test_accuracy*100), '%.\n')
+    print ("Bernoulli Classifier accuracy in percent: ", round (bernoulli_accuracy*100), '%.\n')
+    print ("LogisticRegression Classifier accuracy in percent: ", round (log_reg_accuracy*100), '%.\n')
     
-    print ("\n\n                        There you go, I'm done!\n")
+    print ("\n                          There you go, I'm done!\n")
 
 
 
@@ -93,6 +109,6 @@ if __name__ == "__main__":
 
     print ('I have found ' + str (len (alla_drag)) + ' feature sets.\n')
     
-    träningsdata, testdata, klassifieraren = öva(alla_drag, 0.8) # använder 80%-20%-uppdelning av tränings- och testdata
+    träningsdata, testdata, klassifieraren, bernoulli_klassifieraren, log_reg_klassifieraren = öva(alla_drag, 0.8) # använder 80%-20%-uppdelning av tränings- och testdata
     
-    utvärdera (träningsdata, testdata, klassifieraren)
+    utvärdera (träningsdata, testdata, klassifieraren, bernoulli_klassifieraren, log_reg_klassifieraren)
